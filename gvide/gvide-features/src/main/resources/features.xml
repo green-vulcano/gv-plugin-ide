@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<features xmlns="http://karaf.apache.org/xmlns/features/v1.3.0"	name="${project.artifactId}-${project.version}">
+	<repository>mvn:org.apache.activemq/activemq-karaf/5.12.3/xml/features-core</repository>
+	<repository>mvn:it.greenvulcano.gvesb/gvengine-features/${gvesb.version}/xml/features</repository>	
+		
+	<feature name="gvide" version="${project.version}" description="GreenVulcano Engine">
+
+		<feature>jms</feature>
+		<feature>activemq-client</feature>
+		
+		<feature>gvengine</feature>
+		
+		<configfile finalname="${karaf.etc}/it.greenvulcano.gvesb.bus.cfg" override="true">mvn:it.greenvulcano.gvesb/${project.artifactId}/${pom.version}/cfg/bus</configfile>		
+		<bundle start-level="96">mvn:it.greenvulcano.gvesb/gvide-bus/${project.version}</bundle>
+		<bundle start-level="99">mvn:it.greenvulcano.gvesb/gvide-commands/${project.version}</bundle>
+		
+	</feature>		
+	
+</features>
