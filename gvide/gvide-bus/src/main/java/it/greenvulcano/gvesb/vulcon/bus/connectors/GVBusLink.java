@@ -27,12 +27,14 @@ import java.util.Collections;
 import java.util.Dictionary;
 import java.util.LinkedHashSet;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.ExceptionListener;
 import javax.jms.JMSException;
 import javax.jms.MessageProducer;
 import javax.jms.Queue;
@@ -49,23 +51,24 @@ import it.greenvulcano.configuration.XMLConfigException;
 import it.greenvulcano.gvesb.vulcon.bus.BusLink;
 import it.greenvulcano.gvesb.vulcon.bus.connectors.GVBusConnector;
 
-public class GVBusLink implements BusLink{
+public class GVBusLink implements BusLink, ExceptionListener{
 	private final static Logger LOG = LoggerFactory.getLogger(GVBusLink.class);
 
 	private static final AtomicReference<String> busId = new AtomicReference<>();
-	private Connection connection;	
+	
+	private ConnectionFactory connectionFactory;
+	private Connection connection;
 	private Session session;
 	
 	private ConfigRepository configRepository;
-	
+	private final Timer timer = new Timer();
 	private final static Set<GVBusConnector> connectors;
 	
 	static {
 		connectors = Collections.synchronizedSet(new LinkedHashSet<>());
 	}
 		
-	public void setBusId(String busId) {
-		LOG.debug("Configured BUS "+busId);
+	public void setBusId(String busId) {		
 		GVBusLink.busId.set(busId);		
 	}
 	
@@ -78,14 +81,7 @@ public class GVBusLink implements BusLink{
 	}
 	
 	public void setConnectionFactory(ConnectionFactory connectionFactory) {
-		LOG.debug("Creating connection on bus ");
-		try {
-			connection = connectionFactory.createConnection();
-			connection.start();			
-			
-		} catch (JMSException jmsException) {
-			LOG.error("Error connecting on bus", jmsException);
-		}
+		this.connectionFactory = connectionFactory;
 	}
 		
 	public void setConnectors(Set<GVBusConnector> connectors) {			
@@ -95,8 +91,7 @@ public class GVBusLink implements BusLink{
 	public void init() {
 		String busId = GVBusLink.busId.get();
 		if (busId != null && !busId.trim().isEmpty() && !busId.equals("undefined")){
-			try {
-				
+			try {				
 				LOG.debug("Connection to "+busId);
 				createSession();
 			} catch (JMSException e) {
@@ -108,7 +103,8 @@ public class GVBusLink implements BusLink{
 	public void destroy(){
 		LOG.debug("Destroing session on bus ");
 		if (session!=null) {
-			try {				
+			try {
+				timer.cancel();
 				session.close();
 				connection.close();
 			} catch (JMSException jmsException) {
@@ -162,7 +158,7 @@ public class GVBusLink implements BusLink{
 	
 	@Override
 	public String disconnect(String busId) throws IOException, GeneralSecurityException {
-		String message = "Bus connection established";
+		String message = "Bus " + busId+" disconnected";
 			
 		try {
 			@SuppressWarnings("unchecked")
@@ -220,11 +216,22 @@ public class GVBusLink implements BusLink{
 			
 			if (session!=null) {
 				session.close();
-			}			
-			session  =  Optional.ofNullable(connection)
-								.orElseThrow(()-> new JMSException("Bus connection not ready"))
-								.createSession(false, Session.AUTO_ACKNOWLEDGE);
+			}
 			
+			try {				
+				connection = connectionFactory.createConnection();
+			} catch (JMSException jmsException) {
+				LOG.error("Fail to create a JMS connection");
+				onException(jmsException);
+				throw jmsException;
+			}
+			
+			connection.setExceptionListener(this);
+			connection.start();
+			
+			LOG.debug("JMS connection started ");
+			session  =  connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+			LOG.debug("JMS session created ");
 			String busId = GVBusLink.busId.get();
 			synchronized (connectors) {
 				for (GVBusConnector connector : connectors) {					
@@ -270,6 +277,21 @@ public class GVBusLink implements BusLink{
 		notificationProducer.send(notificationMessage);
 		notificationProducer.close();
 		
+	}	
+	
+	@Override
+	public void onException(JMSException exception) {
+		LOG.error("Scheduling reconnection");
+		timer.schedule(new ReconnectionTask(), 60000);
+		
+		
+	}
+	
+	class ReconnectionTask extends TimerTask {
+		@Override
+		public void run() {
+			init();
+		}		
 	}	
 	
 }
