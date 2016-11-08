@@ -271,7 +271,7 @@ public class GVBusLink implements BusLink, ExceptionListener{
 	}
 	
 	private void notifyConnection() throws JMSException {	
-		Queue notificationQueue = session.createQueue("instance/connection"); 
+		Queue notificationQueue = session.createQueue("instance.connection"); 
 		MessageProducer notificationProducer = session.createProducer(notificationQueue);									
 		TextMessage notificationMessage = session.createTextMessage(String.format("{\"token\":\"%s\"}", busId));
 		notificationProducer.send(notificationMessage);

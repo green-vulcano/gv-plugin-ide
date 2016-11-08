@@ -59,7 +59,7 @@ public class GVBusDeployer implements GVBusConnector {
 	public void connect(Session session, String busId) throws JMSException {
 		this.session = session;
 	
-		Queue queue = this.session.createQueue(busId);						
+		Queue queue = this.session.createQueue("instance.gv."+busId);						
 		MessageConsumer qReceiver = (MessageConsumer) session.createConsumer(queue);
 		qReceiver.setMessageListener(this);
 		LOG.debug("Deployer connected on queue "+busId);

@@ -54,13 +54,13 @@ public class GVBusDebugger implements GVBusConnector {
 		
 	@Override
 	public void connect(Session session, String busId) throws JMSException {
-		Queue debugQueue = session.createQueue(busId.concat("/debug"));
+		Queue debugQueue = session.createQueue("debug." + busId);
 		MessageConsumer messageConsumer = session.createConsumer(debugQueue);
 		messageConsumer.setMessageListener(this);
 		
 		this.session = session;
 		
-		LOG.debug("Debugger connected on queue "+busId+"/debug");
+		LOG.debug("Debugger connected on queue debug." + busId);
 	}	
 	
 	@Override
