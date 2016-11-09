@@ -18,10 +18,14 @@
 			</cm:default-properties>
 	</cm:property-placeholder>
 
-    <bean id="activemqConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+    <bean id="activemqConnectionFactory" class="org.apache.activemq.ActiveMQSslConnectionFactory">
         <property name="brokerURL" value="${gvbus.endpoint}" />
         <property name="userName" value="${gvbus.username}" />
         <property name="password" value="${gvbus.password}" />
+		<property name="keyStore" value="${keystore.path}" />
+		<property name="keyStorePassword" value="${keystore.password}" />
+		<property name="trustStore" value="${truststore.path}" />
+		<property name="trustStorePassword" value="${truststore.password}" />        
     </bean>
 
     <bean id="pooledConnectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory">
